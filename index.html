@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>VJ Assistant</title>
-  <link rel="stylesheet" href="/style.css?v=6">
+  <link rel="stylesheet" href="/style.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js"></script>
 </head>
 <body>
@@ -41,15 +41,20 @@
         </div>
 
         <div class="btn-row top-gap">
-          <button id="rerunFullBtn" class="btn secondary" disabled>画像全体で再OCR</button>
-          <button id="rerunCropBtn" class="btn primary" disabled>選択範囲で再OCR</button>
-          <button id="clearCropBtn" class="btn secondary" disabled>選択解除</button>
+          <button id="selectTitleBtn" class="btn crop-title" disabled>① 曲名範囲を選択</button>
+          <button id="selectArtistBtn" class="btn crop-artist" disabled>② アーティスト範囲を選択</button>
+          <button id="runDualBtn" class="btn primary" disabled>③ 2列OCR実行</button>
+        </div>
+        <div class="btn-row top-gap-small">
+          <button id="rerunFullBtn" class="btn secondary" disabled>画像全体でOCR</button>
+          <button id="clearCropBtn" class="btn secondary" disabled>範囲を全部解除</button>
         </div>
 
-        <p class="crop-help">画像上をドラッグしてOCR範囲を選択できます。<strong>選択範囲の中は元画像のまま表示</strong>し、外側だけ暗くします。</p>
+        <p class="crop-help"><strong>水色＝曲名、緑＝アーティスト</strong>。それぞれ列だけをドラッグで囲ってください。画像は塗りつぶさず、元画質のまま見えます。暗背景は自動反転して漢字を読みやすくします。</p>
         <div class="inline-meta">
-          <div class="pill" id="ocrTargetPill">OCR対象: 画像全体</div>
-          <div class="pill">基本: OCRの1行＝1曲</div>
+          <div class="pill" id="cropModePill">選択中: 曲名列</div>
+          <div class="pill crop-title-pill" id="titleCropPill">曲名範囲: 未設定</div>
+          <div class="pill crop-artist-pill" id="artistCropPill">アーティスト範囲: 未設定</div>
         </div>
 
         <div class="progress">
@@ -108,8 +113,8 @@
     </div>
   </section>
 
-  <footer>Web v0.6 — 選択表示修正 / 1行1曲 / 原寸ズーム</footer>
+  <footer>Web v0.7 — 曲名・アーティスト別トリミング / 漢字OCR強化</footer>
 </div>
-<script src="/app.js?v=6"></script>
+<script src="/app.js?v=7"></script>
 </body>
 </html>

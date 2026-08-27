@@ -1,71 +1,28 @@
-# VJ Assistant Simple Web v0.3
+# VJ Assistant Simple Web v0.4
 
-PCブラウザ向け。前のNext.js版を簡略化して、基本は `index.html` 1枚にまとめた版です。
+## 追加した改善
+- 画像上をドラッグしてOCR範囲をトリミング可能
+- 「画像全体で再OCR」「選択範囲で再OCR」「トリミング解除」
+- OCR後に不要なUI行を自動除外
+- 追加の除外キーワードをカンマ区切りで指定可能
+- 空白曲追加 / 任意位置への挿入 / YouTube検索
+- LIVE認識は従来通りAudD API対応
 
-## 機能
+## 公開方法
+1. このフォルダを GitHub に上げる
+2. Vercel で Import
+3. 必要なら `AUDD_API_TOKEN` を Vercel の Environment Variables に追加
+4. 再デプロイ
 
-### ① セトリ画像解析
-- 画像ドラッグ&ドロップ
-- 日本語 + 英語OCR
-- OCR前に自動拡大 / グレースケール / コントラスト補正
-- 2パターンでOCRして、より多く文字が取れた結果を採用
-- 曲名 / アーティストを直接修正
-- 認識漏れは「＋空白曲を追加」
-- 各曲の間にも空白曲を差し込み可能
-- YouTube検索
-- 準備済チェック
-- ブラウザに結果を保存
+## セトリOCRの使い方
+1. 画像をアップロード
+2. 画像上でドラッグして、曲一覧の部分だけ囲む
+3. 「選択範囲で再OCR」
+4. 必要なら「OCR生テキストを確認・修正」で整える
 
-### ② フロア曲リアルタイム認識
-- PCの音声入力を選択
-- 9秒周期で録音
-- AudDへ送信
-- NOW PLAYING表示
-- YouTube検索
-- 履歴
+特に rekordbox などのスクリーンショットでは、
+- 左側のジャケット画像
+- 上部のプレイリスト名
+- 列見出し（アーティスト / アルバム / BPM など）
 
-## 一番簡単な使い方
-
-### セトリOCRだけ試す
-`index.html` をChromeで開けば画面自体は表示できます。
-
-ただし、ブラウザの音声入力は `file://` では正常に動かない場合があります。
-LIVE認識まで使うならVercelへ公開してください。
-
-## Vercelへ公開
-
-1. このフォルダをGitHubリポジトリへアップロード
-2. VercelでそのGitHubリポジトリをImport
-3. Vercelの Project Settings → Environment Variables
-4. 次を追加
-
-```
-AUDD_API_TOKEN=あなたのAudD APIキー
-```
-
-5. Deploy
-
-以後はVercelが発行したURLをChromeで開くだけです。
-
-## フォルダ構成
-
-```
-vj-assistant-simple/
-├─ index.html
-├─ api/
-│  └─ recognize.js
-├─ vercel.json
-└─ README.md
-```
-
-## 推奨音声接続
-
-```
-DJミキサー REC OUT / BOOTH OUT
-        ↓
-USBオーディオインターフェース
-        ↓
-PC
-        ↓
-Chrome
-```
+を避けて、曲名リストの部分だけ囲うと精度が上がります。

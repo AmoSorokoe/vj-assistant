@@ -15,10 +15,7 @@ export default async function handler(req, res) {
     const { audioBase64, mimeType = "audio/webm" } = req.body || {};
 
     if (!audioBase64) {
-      return res.status(400).json({
-        ok: false,
-        error: "音声データがありません。"
-      });
+      return res.status(400).json({ ok: false, error: "音声データがありません。" });
     }
 
     const bytes = Buffer.from(audioBase64, "base64");

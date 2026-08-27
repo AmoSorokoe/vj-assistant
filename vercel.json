@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/recognize.js": {
+      "maxDuration": 30
+    }
+  }
+}

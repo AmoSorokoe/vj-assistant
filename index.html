@@ -29,7 +29,7 @@
     .tab{border:0;background:transparent;color:var(--muted);padding:11px 16px;border-radius:10px;cursor:pointer}
     .tab.active{background:var(--panel2);color:#fff}
     .view{display:none}.view.active{display:block}
-    .grid{display:grid;grid-template-columns:minmax(360px,.95fr) minmax(600px,1.45fr);gap:14px}
+    .grid{display:grid;grid-template-columns:minmax(380px,.98fr) minmax(600px,1.42fr);gap:14px}
     .panel{background:rgba(17,22,32,.94);border:1px solid var(--border);border-radius:18px;padding:18px;min-width:0}
     .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
     .panel-head h2{margin:4px 0 0;font-size:20px}
@@ -44,14 +44,16 @@
     .btn.youtube{border-color:rgba(255,70,107,.42);background:rgba(255,70,107,.12);color:#ff7894}
     .btn.danger{border-color:rgba(255,70,107,.42);background:rgba(255,70,107,.12);color:#ff7894}
     .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap}
     .hidden{display:none}
     .drop{
       min-height:470px;max-height:63vh;display:grid;place-items:center;overflow:hidden;
-      border:1px dashed #3a4659;border-radius:14px;background:#0a0e14;
+      border:1px dashed #3a4659;border-radius:14px;background:#0a0e14;position:relative;
     }
-    .drop img{max-width:100%;max-height:63vh;object-fit:contain}
-    .drop-copy{text-align:center;color:var(--muted);line-height:1.8}
+    .drop canvas{max-width:100%;max-height:63vh;display:block}
+    .drop-copy{text-align:center;color:var(--muted);line-height:1.8;padding:20px}
     .drop-copy strong{display:block;color:#fff}
+    .crop-help{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7}
     .progress{margin-top:12px}
     .progress-top{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
     .bar{height:5px;background:#090c11;border-radius:999px;overflow:hidden;margin-top:6px}
@@ -59,7 +61,10 @@
     details{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
     summary{color:var(--muted);cursor:pointer}
     textarea{width:100%;min-height:180px;margin:10px 0 8px;padding:11px;background:#0a0e14;color:#fff;border:1px solid var(--border);border-radius:10px;resize:vertical}
-    .result-head-actions{display:flex;gap:8px;align-items:center}
+    .inline-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:12px}
+    .text-input{min-height:40px;padding:0 11px;border:1px solid var(--border);border-radius:10px;background:#0a0e14;color:#fff;width:100%}
+    .result-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .badge{padding:7px 10px;border:1px solid rgba(86,227,159,.3);background:rgba(86,227,159,.08);color:var(--green);border-radius:10px;font-size:12px;font-weight:800}
     .tracks{max-height:74vh;overflow:auto;padding-right:3px}
     .row-group{margin-bottom:7px}
@@ -83,7 +88,7 @@
     .now{margin-top:18px;padding:22px;background:#0a0e14;border:1px solid var(--border);border-radius:16px}
     .now h3{font-size:42px;letter-spacing:-.04em;margin:12px 0 4px}
     .now .artist{color:var(--cyan);font-weight:800;font-size:17px}
-    .now-actions{display:flex;gap:8px;margin-top:16px}
+    .now-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
     .history{max-height:68vh;overflow:auto}
     .history-item{display:grid;grid-template-columns:78px 1fr auto;gap:10px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--border)}
     .history-item time{color:var(--muted);font-size:12px}
@@ -91,7 +96,15 @@
     .history-item span{color:var(--muted);font-size:12px}
     .history-item a{color:#ff7894;text-decoration:none;font-size:12px}
     footer{margin-top:14px;text-align:right;color:#606b7c;font-size:11px}
-    @media(max-width:1050px){.grid{grid-template-columns:1fr}.drop{min-height:340px}}
+    @media(max-width:1100px){
+      .grid{grid-template-columns:1fr}
+      .drop{min-height:340px}
+    }
+    @media(max-width:720px){
+      .panel-head,.actions,.result-head-actions,.device-row,.btn-row{align-items:stretch}
+      .track{grid-template-columns:42px 1fr}
+      .actions{grid-column:2;flex-wrap:wrap}
+    }
   </style>
 </head>
 <body>
@@ -121,6 +134,22 @@
           <div class="drop-copy"><strong>画像をここへドロップ</strong>JPG / PNG / スクリーンショット</div>
         </div>
 
+        <div class="btn-row" style="margin-top:12px">
+          <button id="rerunFullBtn" class="btn secondary" disabled>画像全体で再OCR</button>
+          <button id="rerunCropBtn" class="btn secondary" disabled>選択範囲で再OCR</button>
+          <button id="clearCropBtn" class="btn secondary" disabled>トリミング解除</button>
+        </div>
+
+        <div class="crop-help">
+          画像の上でドラッグすると、OCRしたい範囲だけを選べます。<br>
+          プレイリスト名や列見出しを拾う場合は、曲一覧の部分だけ囲んでから「選択範囲で再OCR」を押してください。
+        </div>
+
+        <div class="inline-meta">
+          <div class="pill" id="ocrTargetPill">OCR対象: 画像全体</div>
+          <div class="pill">除外例: プレイリスト / アーティスト / アルバム / BPM / 評価 / 時間</div>
+        </div>
+
         <div class="progress">
           <div class="progress-top"><span id="ocrStatus">画像を選択してください</span><strong id="ocrPercent"></strong></div>
           <div class="bar"><div id="ocrBar"></div></div>
@@ -129,7 +158,11 @@
         <details>
           <summary>OCR生テキストを確認・修正</summary>
           <textarea id="rawText" placeholder="OCR結果がここに表示されます"></textarea>
-          <button id="reparseBtn" class="btn secondary">修正テキストから再解析</button>
+          <input id="customIgnore" class="text-input" placeholder="追加で除外したいキーワード（カンマ区切り） 例: MASTER, プレイリスト, BPM">
+          <div class="btn-row" style="margin-top:8px">
+            <button id="reparseBtn" class="btn secondary">修正テキストから再解析</button>
+            <button id="applyIgnoreBtn" class="btn secondary">除外キーワードを適用</button>
+          </div>
         </details>
       </div>
 
@@ -182,7 +215,7 @@
     </div>
   </section>
 
-  <footer>Simple Web v0.3 — HTML 1枚 + AudD API</footer>
+  <footer>Simple Web v0.4 — トリミングOCR + 不要行フィルタ</footer>
 </div>
 
 <script>
@@ -194,19 +227,31 @@
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
   let tracks = loadJSON("vj-simple-tracks", []);
-  let imageUrl = "";
   let stream = null;
   let stopRequested = false;
   let recorder = null;
   let history = [];
   const CLIP_MS = 9000;
 
+  let sourceImage = null;
+  let sourceCanvas = null;
+  let displayCanvas = null;
+  let displayCtx = null;
+  let displayScale = 1;
+  let cropRect = null;
+  let dragging = false;
+  let dragStart = null;
+
+  const defaultIgnoreKeywords = [
+    "プレイリスト", "トラックタイトル", "アーティスト", "アルバム", "ジャンル",
+    "bpm", "評価", "時間", "レーティング", "comment", "comments", "date", "key"
+  ];
+
   function loadJSON(key, fallback){
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
   }
   function saveTracks(){ localStorage.setItem("vj-simple-tracks", JSON.stringify(tracks)); }
 
-  // Tabs
   $$(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
       $$(".tab").forEach(b => b.classList.remove("active"));
@@ -217,7 +262,6 @@
     });
   });
 
-  // ---------- SETLIST ----------
   const fileInput = $("#fileInput");
   const drop = $("#drop");
 
@@ -234,332 +278,596 @@
   });
 
   $("#addBlankBtn").addEventListener("click", () => addBlank());
-  $("#reparseBtn").addEventListener("click", () => {
-    tracks = parseSetlist($("#rawText").value);
-    saveTracks(); renderTracks();
-    setOcrStatus(`再解析完了：${tracks.length}件`, 100);
-  });
+  $("#reparseBtn").addEventListener("click", reparseRawText);
+  $("#applyIgnoreBtn").addEventListener("click", reparseRawText);
+  $("#rerunFullBtn").addEventListener("click", () => runOcrOnCurrent(false));
+  $("#rerunCropBtn").addEventListener("click", () => runOcrOnCurrent(true));
+  $("#clearCropBtn").addEventListener("click", clearCrop);
 
   async function handleImage(file){
     if (!file.type.startsWith("image/")) return setOcrStatus("画像ファイルを選択してください", 0);
-
-    if (imageUrl) URL.revokeObjectURL(imageUrl);
-    imageUrl = URL.createObjectURL(file);
-    drop.innerHTML = `<img src="${imageUrl}" alt="setlist preview">`;
-    await runOcr(file);
+    const bmp = await createImageBitmap(file);
+    setupSourceCanvasFromBitmap(bmp);
+    bmp.close();
+    createDisplayCanvas();
+    clearCrop();
+    enableImageButtons(true);
+    await runOcrOnCurrent(false);
   }
 
-  async function preprocess(file, mode="gray"){
-    const bmp = await createImageBitmap(file);
-    const targetW = Math.min(3200, Math.max(1800, Math.min(bmp.width * 2.6, 3200)));
+  function setupSourceCanvasFromBitmap(bmp){
+    sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = bmp.width;
+    sourceCanvas.height = bmp.height;
+    const ctx = sourceCanvas.getContext("2d");
+    ctx.drawImage(bmp, 0, 0);
+    sourceImage = { width: bmp.width, height: bmp.height };
+  }
+
+  function createDisplayCanvas(){
+    if (!sourceCanvas) return;
+    drop.innerHTML = "";
+    displayCanvas = document.createElement("canvas");
+    displayCanvas.style.cursor = "crosshair";
+    drop.appendChild(displayCanvas);
+    displayCtx = displayCanvas.getContext("2d");
+
+    const maxW = Math.min(drop.clientWidth - 20, sourceCanvas.width);
+    const maxH = Math.min(window.innerHeight * 0.55, sourceCanvas.height);
+    const scale = Math.min(maxW / sourceCanvas.width, maxH / sourceCanvas.height, 1);
+    displayScale = scale > 0 ? scale : 1;
+    displayCanvas.width = Math.round(sourceCanvas.width * displayScale);
+    displayCanvas.height = Math.round(sourceCanvas.height * displayScale);
+
+    bindCropEvents();
+    renderDisplayCanvas();
+  }
+
+  function bindCropEvents(){
+    const getPoint = (event) => {
+      const rect = displayCanvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(displayCanvas.width, event.clientX - rect.left)),
+        y: Math.max(0, Math.min(displayCanvas.height, event.clientY - rect.top))
+      };
+    };
+
+    displayCanvas.onmousedown = (event) => {
+      dragging = true;
+      dragStart = getPoint(event);
+      cropRect = { x: dragStart.x, y: dragStart.y, w: 0, h: 0 };
+      renderDisplayCanvas();
+    };
+
+    window.onmousemove = (event) => {
+      if (!dragging || !displayCanvas) return;
+      const current = getPoint(event);
+      cropRect = normalizeRect({
+        x: dragStart.x,
+        y: dragStart.y,
+        w: current.x - dragStart.x,
+        h: current.y - dragStart.y
+      });
+      renderDisplayCanvas();
+    };
+
+    window.onmouseup = () => {
+      if (!dragging) return;
+      dragging = false;
+      if (cropRect && (cropRect.w < 12 || cropRect.h < 12)) {
+        cropRect = null;
+      }
+      renderDisplayCanvas();
+      syncCropButtons();
+    };
+  }
+
+  function normalizeRect(r){
+    const x = r.w < 0 ? r.x + r.w : r.x;
+    const y = r.h < 0 ? r.y + r.h : r.y;
+    return { x, y, w: Math.abs(r.w), h: Math.abs(r.h) };
+  }
+
+  function renderDisplayCanvas(){
+    if (!displayCanvas || !displayCtx || !sourceCanvas) return;
+    displayCtx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+    displayCtx.drawImage(sourceCanvas, 0, 0, displayCanvas.width, displayCanvas.height);
+
+    if (cropRect) {
+      displayCtx.save();
+      displayCtx.fillStyle = "rgba(0,0,0,.38)";
+      displayCtx.fillRect(0, 0, displayCanvas.width, displayCanvas.height);
+      displayCtx.clearRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+
+      displayCtx.strokeStyle = "#3dd7ff";
+      displayCtx.lineWidth = 2;
+      displayCtx.setLineDash([8, 5]);
+      displayCtx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+
+      displayCtx.fillStyle = "rgba(61,215,255,.18)";
+      displayCtx.fillRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+
+      const label = `OCR範囲 ${Math.round(cropRect.w / displayScale)}×${Math.round(cropRect.h / displayScale)}`;
+      displayCtx.setLineDash([]);
+      displayCtx.font = "12px sans-serif";
+      const pad = 6;
+      const boxW = displayCtx.measureText(label).width + pad * 2;
+      displayCtx.fillStyle = "#0e1824";
+      displayCtx.fillRect(cropRect.x, Math.max(0, cropRect.y - 26), boxW, 22);
+      displayCtx.fillStyle = "#ffffff";
+      displayCtx.fillText(label, cropRect.x + pad, Math.max(15, cropRect.y - 11));
+      displayCtx.restore();
+    }
+  }
+
+  function syncCropButtons(){
+    const hasSource = !!sourceCanvas;
+    const hasCrop = !!cropRect;
+    $("#rerunFullBtn").disabled = !hasSource;
+    $("#rerunCropBtn").disabled = !hasCrop;
+    $("#clearCropBtn").disabled = !hasCrop;
+    $("#ocrTargetPill").textContent = hasCrop ? "OCR対象: 選択範囲あり" : "OCR対象: 画像全体";
+  }
+
+  function clearCrop(){
+    cropRect = null;
+    renderDisplayCanvas();
+    syncCropButtons();
+  }
+
+  function enableImageButtons(enabled){
+    $("#rerunFullBtn").disabled = !enabled;
+    syncCropButtons();
+  }
+
+  async function runOcrOnCurrent(useCrop){
+    if (!sourceCanvas) return;
+    try{
+      let targetBlob;
+      if (useCrop && cropRect) {
+        targetBlob = await getCropBlob();
+        setOcrStatus("選択範囲をOCR向けに補正中…", 2);
+      } else {
+        targetBlob = await canvasToBlob(sourceCanvas);
+        setOcrStatus("画像全体をOCR向けに補正中…", 2);
+      }
+
+      const text = await runDualOcr(targetBlob);
+      $("#rawText").value = text;
+      reparseRawText();
+      setOcrStatus(`解析完了：${tracks.length}件。不要な行は除外済み、抜けは「＋空白曲を追加」で補完できます。`, 100);
+    } catch(err){
+      setOcrStatus(`OCRエラー: ${err?.message || err}`, 0);
+    }
+  }
+
+  async function getCropBlob(){
+    if (!sourceCanvas || !cropRect) throw new Error("トリミング範囲がありません。");
+    const x = Math.round(cropRect.x / displayScale);
+    const y = Math.round(cropRect.y / displayScale);
+    const w = Math.round(cropRect.w / displayScale);
+    const h = Math.round(cropRect.h / displayScale);
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(sourceCanvas, x, y, w, h, 0, 0, w, h);
+    return await canvasToBlob(c);
+  }
+
+  function canvasToBlob(canvas){
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("画像変換失敗")), "image/png");
+    });
+  }
+
+  async function preprocess(blob, mode="gray"){
+    const bmp = await createImageBitmap(blob);
+    const targetW = Math.min(3600, Math.max(2000, Math.min(bmp.width * 2.8, 3600)));
     const scale = targetW / bmp.width;
+
     const c = document.createElement("canvas");
     c.width = Math.round(bmp.width * scale);
     c.height = Math.round(bmp.height * scale);
-    const ctx = c.getContext("2d", {willReadFrequently:true});
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp,0,0,c.width,c.height);
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
     bmp.close();
 
-    const img = ctx.getImageData(0,0,c.width,c.height);
+    const img = ctx.getImageData(0, 0, c.width, c.height);
     const d = img.data;
     const hist = new Array(256).fill(0);
+
     for(let i=0;i<d.length;i+=4){
-      const g = Math.round(d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722);
+      const g = Math.round(d[i]*.2126 + d[i+1]*.7152 + d[i+2]*.0722);
       hist[g]++;
     }
-    const n=c.width*c.height, loN=n*.015, hiN=n*.985;
-    let sum=0, lo=0, hi=255;
-    for(let i=0;i<256;i++){sum+=hist[i];if(sum>=loN){lo=i;break}}
-    sum=0;
-    for(let i=0;i<256;i++){sum+=hist[i];if(sum>=hiN){hi=i;break}}
-    const range=Math.max(32,hi-lo);
+
+    const total = c.width * c.height;
+    const lowTarget = total * 0.01;
+    const highTarget = total * 0.99;
+    let acc = 0, low = 0, high = 255;
+
+    for(let i=0;i<256;i++){ acc += hist[i]; if(acc >= lowTarget){ low = i; break; } }
+    acc = 0;
+    for(let i=0;i<256;i++){ acc += hist[i]; if(acc >= highTarget){ high = i; break; } }
+
+    const range = Math.max(26, high - low);
 
     for(let i=0;i<d.length;i+=4){
-      const g=d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722;
-      let v=((g-lo)/range)*255;
-      v=(v-128)*1.4+128;
-      v=Math.max(0,Math.min(255,v));
+      const g = d[i]*.2126 + d[i+1]*.7152 + d[i+2]*.0722;
+      let v = ((g - low) / range) * 255;
+      v = (v - 128) * 1.55 + 128;
+      v = Math.max(0, Math.min(255, v));
 
-      if(mode==="threshold"){
-        v = v > 150 ? 255 : 0;
+      if(mode === "threshold"){
+        v = v > 154 ? 255 : 0;
       }
 
-      d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
+      d[i] = d[i+1] = d[i+2] = v;
+      d[i+3] = 255;
     }
-    ctx.putImageData(img,0,0);
 
-    return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error("画像変換失敗")),"image/png"));
+    ctx.putImageData(img, 0, 0);
+    return await canvasToBlob(c);
   }
 
-  async function runOcr(file){
-    if (!window.Tesseract){
-      return setOcrStatus("OCRライブラリを読み込めません。インターネット接続を確認してください。", 0);
+  async function runDualOcr(blob){
+    if (!window.Tesseract) {
+      throw new Error("OCRライブラリを読み込めません。インターネット接続を確認してください。");
     }
 
-    try{
-      setOcrStatus("画像をOCR向けに補正中…", 2);
-
-      // 1回目: グレー高コントラスト
-      const img1 = await preprocess(file, "gray");
-      const worker = await Tesseract.createWorker(["jpn","eng"], 1, {
-        logger:m=>{
-          if(typeof m.progress==="number"){
-            const p = Math.max(3, Math.round(m.progress*70));
-            setOcrStatus(`OCR解析中…`, p);
-          }
+    const grayBlob = await preprocess(blob, "gray");
+    const worker = await Tesseract.createWorker(["jpn", "eng"], 1, {
+      logger: (m) => {
+        if (typeof m.progress === "number") {
+          const p = Math.max(5, Math.round(m.progress * 72));
+          setOcrStatus("OCR解析中…", p);
         }
-      });
+      }
+    });
 
-      await worker.setParameters({
-        preserve_interword_spaces:"1",
-        tessedit_pageseg_mode:"6"
-      });
+    await worker.setParameters({
+      preserve_interword_spaces: "1",
+      tessedit_pageseg_mode: "6"
+    });
 
-      const r1 = await worker.recognize(img1);
+    const r1 = await worker.recognize(grayBlob);
 
-      // 2回目: 二値化。表の小さい白文字/黒文字を拾う補助。
-      setOcrStatus("表形式の文字を追加確認中…", 74);
-      const img2 = await preprocess(file, "threshold");
-      const r2 = await worker.recognize(img2);
-      await worker.terminate();
+    setOcrStatus("表形式向けの追加OCR中…", 78);
+    const bwBlob = await preprocess(blob, "threshold");
+    const r2 = await worker.recognize(bwBlob);
+    await worker.terminate();
 
-      const text1 = (r1.data.text||"").trim();
-      const text2 = (r2.data.text||"").trim();
+    const t1 = sanitizeOcrText((r1.data.text || "").trim());
+    const t2 = sanitizeOcrText((r2.data.text || "").trim());
 
-      // より「行」が多く取れた方を主結果にする。
-      const best = scoreOcrText(text2) > scoreOcrText(text1) ? text2 : text1;
-      $("#rawText").value = best;
-      tracks = parseSetlist(best);
-      saveTracks();
-      renderTracks();
-      setOcrStatus(`解析完了：${tracks.length}件。抜けは「＋空白曲を追加」で補完できます。`,100);
-    }catch(err){
-      setOcrStatus(`OCRエラー: ${err?.message||err}`,0);
+    return scoreOcrText(t2) > scoreOcrText(t1) ? t2 : t1;
+  }
+
+  function sanitizeOcrText(text){
+    const allIgnore = getAllIgnoreKeywords();
+    const lines = text.replace(/\r/g, "").split("\n")
+      .map(s => s.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean);
+
+    const cleaned = [];
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      const hitCount = allIgnore.reduce((n, kw) => n + (lower.includes(kw.toLowerCase()) ? 1 : 0), 0);
+
+      if (hitCount >= 2) continue;
+      if (/^(playlist|browser|recordbox|rekordbox)$/i.test(lower)) continue;
+      if (/^(アーティスト|アルバム|ジャンル|評価|時間|bpm|key)$/i.test(line)) continue;
+      if (/^[\|\[\]\(\)\-_=~:;,.!?\\\/]+$/.test(line)) continue;
+      if (line.length <= 1) continue;
+
+      cleaned.push(line);
     }
+
+    return cleaned.join("\n");
+  }
+
+  function getAllIgnoreKeywords(){
+    const extra = ($("#customIgnore").value || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+    return [...defaultIgnoreKeywords, ...extra];
   }
 
   function scoreOcrText(text){
-    const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    const useful=lines.filter(s=>s.length>=2).length;
-    return useful*10 + text.length/50;
+    const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const useful = lines.filter(s => s.length >= 2).length;
+    const penalty = lines.filter(s => /トラックタイトル|アーティスト|アルバム|ジャンル|BPM|評価|時間/i.test(s)).length * 20;
+    return useful * 10 + text.length / 50 - penalty;
   }
 
-  function setOcrStatus(text,pct){
-    $("#ocrStatus").textContent=text;
-    $("#ocrPercent").textContent=pct ? `${pct}%` : "";
-    $("#ocrBar").style.width=`${pct||0}%`;
+  function reparseRawText(){
+    const text = sanitizeOcrText($("#rawText").value);
+    $("#rawText").value = text;
+    tracks = parseSetlist(text);
+    saveTracks();
+    renderTracks();
+  }
+
+  function setOcrStatus(text, pct){
+    $("#ocrStatus").textContent = text;
+    $("#ocrPercent").textContent = pct ? `${pct}%` : "";
+    $("#ocrBar").style.width = `${pct || 0}%`;
   }
 
   function parseSetlist(text){
-    const lines=text.replace(/\r/g,"").split("\n")
-      .map(s=>s.replace(/[ \t]+/g," ").trim()).filter(Boolean);
+    const lines = text.replace(/\r/g, "").split("\n")
+      .map(s => s.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean);
 
-    const out=[];
+    const out = [];
+
     for(let i=0;i<lines.length;i++){
-      let line=lines[i];
-      const numbered=/^\s*(?:[#№]?\s*\d{1,3}\s*[\.\-:：\)\]】、]?|[①-⑳])/.test(line);
-      line=line.replace(/^\s*(?:[#№]?\s*\d{1,3}\s*[\.\-:：\)\]】、]?\s*|[①-⑳]\s*)/,"").trim();
+      let line = lines[i];
 
-      let title=line, artist="";
-      const seps=[/\s+[|｜]\s+/,/\s+[\/／]\s+/,/\s+[–—]\s+/,/\s+-\s+/];
-      for(const re of seps){
-        const p=line.split(re).map(x=>x.trim()).filter(Boolean);
-        if(p.length>=2){title=p[0];artist=p.slice(1).join(" / ");break}
+      if (shouldIgnoreAsUiLine(line)) continue;
+
+      line = line.replace(/^\s*(?:[#№]?\s*\d{1,3}\s*[\.\-:：\)\]】、]?\s*|[①-⑳]\s*)/, "").trim();
+
+      let title = line;
+      let artist = "";
+
+      const separators = [
+        /\s+[|｜]\s+/,
+        /\s+[\/／]\s+/,
+        /\s+[–—]\s+/,
+        /\s+-\s+/
+      ];
+
+      for (const re of separators) {
+        const parts = line.split(re).map(v => v.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          title = parts[0];
+          artist = parts.slice(1).join(" / ");
+          break;
+        }
       }
 
-      // 画像の表形式ではOCRが列を混ぜる場合があるので、
-      // 完全自動で無理に分解せず、読めた文字をタイトル欄へ残す。
-      if(title){
-        out.push({id:uid(),title,artist,ready:false});
+      if (!artist && i + 1 < lines.length) {
+        const next = lines[i + 1];
+        if (!shouldIgnoreAsUiLine(next) && next.length <= 42 && !/^\d{1,3}\b/.test(next) && !/BPM|評価|時間/i.test(next)) {
+          const kanaOrLatin = /[ぁ-んァ-ン一-龯A-Za-z]/.test(next);
+          const manyNumbers = (next.match(/\d/g) || []).length >= 4;
+          if (kanaOrLatin && !manyNumbers) {
+            artist = next;
+            i += 1;
+          }
+        }
       }
+
+      if (!title) continue;
+      if (title.length <= 1) continue;
+      if (shouldIgnoreAsUiLine(title)) continue;
+
+      out.push({ id: uid(), title, artist, ready: false });
     }
+
     return out;
   }
 
+  function shouldIgnoreAsUiLine(line){
+    const lower = line.toLowerCase();
+    const keywordHits = getAllIgnoreKeywords().reduce((n, kw) => n + (lower.includes(kw.toLowerCase()) ? 1 : 0), 0);
+    if (keywordHits >= 2) return true;
+    if (/^(アーティスト|アルバム|ジャンル|評価|時間|bpm|key)$/i.test(line)) return true;
+    if (/^(playlist|browser|collection|search)$/i.test(lower)) return true;
+    return false;
+  }
+
   function addBlank(afterId=null){
-    const t={id:uid(),title:"",artist:"",ready:false};
+    const t={id:uid(), title:"", artist:"", ready:false};
     if(!afterId) tracks.push(t);
     else{
-      const i=tracks.findIndex(x=>x.id===afterId);
-      i<0 ? tracks.push(t) : tracks.splice(i+1,0,t);
+      const i = tracks.findIndex(x => x.id === afterId);
+      i < 0 ? tracks.push(t) : tracks.splice(i + 1, 0, t);
     }
-    saveTracks();renderTracks();
-    setTimeout(()=>{
-      const target=document.querySelector(`[data-id="${t.id}"] input`);
+    saveTracks();
+    renderTracks();
+    setTimeout(() => {
+      const target = document.querySelector(`[data-id="${t.id}"] input`);
       target?.focus();
-    },0);
+    }, 0);
   }
 
   function ytUrl(t){
-    return `https://www.youtube.com/results?search_query=${encodeURIComponent([t.artist,t.title,"official MV"].filter(Boolean).join(" "))}`;
+    return `https://www.youtube.com/results?search_query=${encodeURIComponent([t.artist, t.title, "official MV"].filter(Boolean).join(" "))}`;
   }
 
   function renderTracks(){
-    const host=$("#tracks");
-    const ready=tracks.filter(t=>t.ready).length;
-    $("#readyBadge").textContent=`${ready}/${tracks.length} 準備済`;
+    const host = $("#tracks");
+    const ready = tracks.filter(t => t.ready).length;
+    $("#readyBadge").textContent = `${ready}/${tracks.length} 準備済`;
 
     if(!tracks.length){
-      host.innerHTML=`<div class="empty"><div>セトリ画像を解析するとここに一覧が表示されます。<br><br><button id="emptyAdd" class="btn secondary">＋ 手動で1曲追加</button></div></div>`;
-      $("#emptyAdd")?.addEventListener("click",()=>addBlank());
+      host.innerHTML = `<div class="empty"><div>セトリ画像を解析するとここに一覧が表示されます。<br><br><button id="emptyAdd" class="btn secondary">＋ 手動で1曲追加</button></div></div>`;
+      $("#emptyAdd")?.addEventListener("click", () => addBlank());
       return;
     }
 
-    host.innerHTML="";
-    tracks.forEach((t,index)=>{
-      const group=document.createElement("div");
-      group.className="row-group";
-      group.dataset.id=t.id;
-      group.innerHTML=`
+    host.innerHTML = "";
+    tracks.forEach((t, index) => {
+      const group = document.createElement("div");
+      group.className = "row-group";
+      group.dataset.id = t.id;
+      group.innerHTML = `
         <article class="track">
-          <div class="num">${String(index+1).padStart(2,"0")}</div>
+          <div class="num">${String(index + 1).padStart(2, "0")}</div>
           <div class="edit">
             <input class="title" placeholder="曲名" value="${esc(t.title)}">
             <input class="artist" placeholder="アーティスト" value="${esc(t.artist)}">
           </div>
           <div class="actions">
             <a class="btn youtube yt" target="_blank" rel="noreferrer">YouTube検索</a>
-            <label class="ready"><input class="readyBox" type="checkbox" ${t.ready?"checked":""}>準備済</label>
+            <label class="ready"><input class="readyBox" type="checkbox" ${t.ready ? "checked" : ""}>準備済</label>
             <button class="x" title="削除">×</button>
           </div>
         </article>
         <button class="insert">＋ この下に空白曲を追加</button>
       `;
 
-      const title=group.querySelector(".title");
-      const artist=group.querySelector(".artist");
-      const yt=group.querySelector(".yt");
-      const sync=()=>{
-        t.title=title.value; t.artist=artist.value; yt.href=ytUrl(t); saveTracks();
+      const title = group.querySelector(".title");
+      const artist = group.querySelector(".artist");
+      const yt = group.querySelector(".yt");
+      const sync = () => {
+        t.title = title.value;
+        t.artist = artist.value;
+        yt.href = ytUrl(t);
+        saveTracks();
       };
-      title.addEventListener("input",sync);
-      artist.addEventListener("input",sync);
+      title.addEventListener("input", sync);
+      artist.addEventListener("input", sync);
       sync();
-      group.querySelector(".readyBox").addEventListener("change",e=>{t.ready=e.target.checked;saveTracks();renderTracks()});
-      group.querySelector(".x").addEventListener("click",()=>{tracks=tracks.filter(x=>x.id!==t.id);saveTracks();renderTracks()});
-      group.querySelector(".insert").addEventListener("click",()=>addBlank(t.id));
+
+      group.querySelector(".readyBox").addEventListener("change", e => {
+        t.ready = e.target.checked;
+        saveTracks();
+        renderTracks();
+      });
+
+      group.querySelector(".x").addEventListener("click", () => {
+        tracks = tracks.filter(x => x.id !== t.id);
+        saveTracks();
+        renderTracks();
+      });
+
+      group.querySelector(".insert").addEventListener("click", () => addBlank(t.id));
       host.appendChild(group);
     });
   }
 
   function esc(s){
-    return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+    return String(s ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m]));
   }
 
   renderTracks();
 
-  // ---------- LIVE ----------
   $("#refreshDevices").addEventListener("click", refreshDevices);
   $("#startLive").addEventListener("click", startLive);
   $("#stopLive").addEventListener("click", stopLive);
-  $("#clearHistory").addEventListener("click", ()=>{history=[];renderHistory()});
+  $("#clearHistory").addEventListener("click", () => { history = []; renderHistory(); });
 
   async function refreshDevices(){
     hideError();
     try{
-      const s=await navigator.mediaDevices.getUserMedia({audio:true});
-      s.getTracks().forEach(t=>t.stop());
-      const all=await navigator.mediaDevices.enumerateDevices();
-      const ins=all.filter(d=>d.kind==="audioinput");
-      const sel=$("#audioDevice");
-      sel.innerHTML=`<option value="">既定の音声入力</option>`;
-      ins.forEach((d,i)=>{
-        const o=document.createElement("option");
-        o.value=d.deviceId;o.textContent=d.label||`音声入力 ${i+1}`;sel.appendChild(o);
+      const s = await navigator.mediaDevices.getUserMedia({audio:true});
+      s.getTracks().forEach(t => t.stop());
+      const all = await navigator.mediaDevices.enumerateDevices();
+      const ins = all.filter(d => d.kind === "audioinput");
+      const sel = $("#audioDevice");
+      sel.innerHTML = `<option value="">既定の音声入力</option>`;
+      ins.forEach((d, i) => {
+        const o = document.createElement("option");
+        o.value = d.deviceId;
+        o.textContent = d.label || `音声入力 ${i + 1}`;
+        sel.appendChild(o);
       });
-    }catch(e){showError(`音声入力を取得できません: ${e.message||e}`)}
+    }catch(e){ showError(`音声入力を取得できません: ${e.message || e}`); }
   }
 
   async function startLive(){
-    hideError(); stopRequested=false;
+    hideError();
+    stopRequested = false;
     try{
-      const id=$("#audioDevice").value;
-      stream=await navigator.mediaDevices.getUserMedia({
-        audio:id?{deviceId:{exact:id},echoCancellation:false,noiseSuppression:false,autoGainControl:false}
-                :{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+      const id = $("#audioDevice").value;
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: id ? {deviceId:{exact:id}, echoCancellation:false, noiseSuppression:false, autoGainControl:false}
+                  : {echoCancellation:false, noiseSuppression:false, autoGainControl:false}
       });
-      $("#startLive").classList.add("hidden");$("#stopLive").classList.remove("hidden");
-      $("#topStatus").textContent="LIVE認識中";
+      $("#startLive").classList.add("hidden");
+      $("#stopLive").classList.remove("hidden");
+      $("#topStatus").textContent = "LIVE認識中";
       loop(stream);
-    }catch(e){showError(`入力開始に失敗: ${e.message||e}`)}
+    }catch(e){ showError(`入力開始に失敗: ${e.message || e}`); }
   }
 
   function stopLive(){
-    stopRequested=true;
-    try{if(recorder&&recorder.state!=="inactive")recorder.stop()}catch{}
-    stream?.getTracks().forEach(t=>t.stop());stream=null;
-    $("#startLive").classList.remove("hidden");$("#stopLive").classList.add("hidden");
-    $("#topStatus").textContent="LIVE停止中";$("#liveState").textContent="停止中";
+    stopRequested = true;
+    try{ if(recorder && recorder.state !== "inactive") recorder.stop(); }catch{}
+    stream?.getTracks().forEach(t => t.stop());
+    stream = null;
+    $("#startLive").classList.remove("hidden");
+    $("#stopLive").classList.add("hidden");
+    $("#topStatus").textContent = "LIVE停止中";
+    $("#liveState").textContent = "停止中";
   }
 
   async function loop(s){
     while(!stopRequested && s.active){
       try{
-        $("#liveState").textContent="9秒サンプリング中…";
-        const blob=await recordClip(s,CLIP_MS);
-        if(stopRequested)break;
-        $("#liveState").textContent="楽曲照合中…";
+        $("#liveState").textContent = "9秒サンプリング中…";
+        const blob = await recordClip(s, CLIP_MS);
+        if(stopRequested) break;
+        $("#liveState").textContent = "楽曲照合中…";
         await recognize(blob);
       }catch(e){
-        if(!stopRequested){showError(e.message||String(e));$("#liveState").textContent="エラー";await sleep(1500)}
+        if(!stopRequested){
+          showError(e.message || String(e));
+          $("#liveState").textContent = "エラー";
+          await sleep(1500);
+        }
       }
     }
   }
 
-  function recordClip(s,ms){
-    return new Promise((resolve,reject)=>{
-      const types=["audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
-      const type=types.find(t=>MediaRecorder.isTypeSupported(t))||"";
-      recorder=new MediaRecorder(s,type?{mimeType:type,audioBitsPerSecond:128000}:undefined);
-      const chunks=[];
+  function recordClip(s, ms){
+    return new Promise((resolve, reject) => {
+      const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+      const type = types.find(t => MediaRecorder.isTypeSupported(t)) || "";
+      recorder = new MediaRecorder(s, type ? {mimeType:type, audioBitsPerSecond:128000} : undefined);
+      const chunks = [];
       let timer;
-      recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-      recorder.onerror=()=>reject(new Error("録音処理に失敗しました"));
-      recorder.onstop=()=>{clearTimeout(timer);resolve(new Blob(chunks,{type:recorder.mimeType||"audio/webm"}))};
+      recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      recorder.onerror = () => reject(new Error("録音処理に失敗しました"));
+      recorder.onstop = () => { clearTimeout(timer); resolve(new Blob(chunks, {type:recorder.mimeType || "audio/webm"})); };
       recorder.start();
-      timer=setTimeout(()=>{if(recorder.state!=="inactive")recorder.stop()},ms);
+      timer = setTimeout(() => { if(recorder.state !== "inactive") recorder.stop(); }, ms);
     });
   }
 
   async function recognize(blob){
     const audioBase64 = await blobToBase64(blob);
-    const res=await fetch("/api/recognize",{
-      method:"POST",
-      headers:{"content-type":"application/json"},
-      body:JSON.stringify({
-        audioBase64,
-        mimeType:blob.type||"audio/webm"
-      })
+    const res = await fetch("/api/recognize", {
+      method: "POST",
+      headers: { "content-type":"application/json" },
+      body: JSON.stringify({ audioBase64, mimeType: blob.type || "audio/webm" })
     });
-    const data=await res.json();
-    if(!res.ok||!data.ok)throw new Error(data.error||"認識APIエラー");
-    if(!data.match){$("#liveState").textContent="一致なし";return}
+    const data = await res.json();
+    if(!res.ok || !data.ok) throw new Error(data.error || "認識APIエラー");
+    if(!data.match){ $("#liveState").textContent = "一致なし"; return; }
 
-    const m=data.match;
-    $("#liveState").textContent="認識成功";
-    $("#nowContent").className="";
-    $("#nowContent").innerHTML=`
+    const m = data.match;
+    $("#liveState").textContent = "認識成功";
+    $("#nowContent").className = "";
+    $("#nowContent").innerHTML = `
       <h3>${esc(m.title)}</h3>
       <div class="artist">${esc(m.artist)}</div>
       <div class="now-actions">
         <a class="btn youtube" target="_blank" href="${ytUrl(m)}">YouTube検索</a>
-        ${m.songLink?`<a class="btn secondary" target="_blank" href="${esc(m.songLink)}">AudD結果</a>`:""}
+        ${m.songLink ? `<a class="btn secondary" target="_blank" href="${esc(m.songLink)}">AudD結果</a>` : ""}
       </div>`;
 
-    const latest=history[0];
-    const same=latest&&norm(latest.title)===norm(m.title)&&norm(latest.artist)===norm(m.artist);
+    const latest = history[0];
+    const same = latest && norm(latest.title) === norm(m.title) && norm(latest.artist) === norm(m.artist);
     if(!same){
-      history.unshift({...m,id:uid(),detectedAt:new Date().toLocaleTimeString("ja-JP")});
-      history=history.slice(0,30);renderHistory();
+      history.unshift({...m, id:uid(), detectedAt:new Date().toLocaleTimeString("ja-JP")});
+      history = history.slice(0, 30);
+      renderHistory();
     }
   }
 
   function renderHistory(){
-    const h=$("#history");
-    if(!history.length){h.innerHTML=`<div class="empty">認識した曲がここに残ります。</div>`;return}
-    h.innerHTML=history.map(x=>`
+    const h = $("#history");
+    if(!history.length){ h.innerHTML = `<div class="empty">認識した曲がここに残ります。</div>`; return; }
+    h.innerHTML = history.map(x => `
       <div class="history-item">
         <time>${esc(x.detectedAt)}</time>
         <div><strong>${esc(x.title)}</strong><span>${esc(x.artist)}</span></div>
@@ -569,21 +877,21 @@
   renderHistory();
 
   function blobToBase64(blob){
-    return new Promise((resolve,reject)=>{
-      const reader=new FileReader();
-      reader.onload=()=>{
-        const value=String(reader.result||"");
-        resolve(value.includes(",")?value.split(",")[1]:value);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const value = String(reader.result || "");
+        resolve(value.includes(",") ? value.split(",")[1] : value);
       };
-      reader.onerror=()=>reject(new Error("録音データの変換に失敗しました"));
+      reader.onerror = () => reject(new Error("録音データの変換に失敗しました"));
       reader.readAsDataURL(blob);
     });
   }
 
-  function norm(s){return String(s||"").toLowerCase().replace(/\s+/g,"")}
-  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-  function showError(msg){$("#liveError").textContent=msg;$("#liveError").classList.remove("hidden")}
-  function hideError(){$("#liveError").classList.add("hidden")}
+  function norm(s){ return String(s || "").toLowerCase().replace(/\s+/g, ""); }
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+  function showError(msg){ $("#liveError").textContent = msg; $("#liveError").classList.remove("hidden"); }
+  function hideError(){ $("#liveError").classList.add("hidden"); }
 
 })();
 </script>

@@ -47,10 +47,12 @@
     .btn-row{display:flex;gap:8px;flex-wrap:wrap}
     .hidden{display:none}
     .drop{
-      min-height:470px;max-height:63vh;display:grid;place-items:center;overflow:hidden;
+      min-height:470px;height:min(63vh,680px);display:block;overflow:auto;
       border:1px dashed #3a4659;border-radius:14px;background:#0a0e14;position:relative;
     }
-    .drop canvas{max-width:100%;max-height:63vh;display:block}
+    .drop canvas{display:block;max-width:none;max-height:none;transform-origin:top left}
+    .zoom-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .zoom-value{min-width:64px;text-align:center;color:var(--cyan);font-weight:800;font-variant-numeric:tabular-nums}
     .drop-copy{text-align:center;color:var(--muted);line-height:1.8;padding:20px}
     .drop-copy strong{display:block;color:#fff}
     .crop-help{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7}
@@ -134,15 +136,24 @@
           <div class="drop-copy"><strong>画像をここへドロップ</strong>JPG / PNG / スクリーンショット</div>
         </div>
 
-        <div class="btn-row" style="margin-top:12px">
+        <div class="zoom-toolbar">
+          <button id="zoomOutBtn" class="btn secondary" disabled>－</button>
+          <div id="zoomValue" class="zoom-value">100%</div>
+          <button id="zoomInBtn" class="btn secondary" disabled>＋</button>
+          <button id="zoom100Btn" class="btn secondary" disabled>100%</button>
+          <button id="zoomFitBtn" class="btn secondary" disabled>幅に合わせる</button>
+          <span class="pill">Ctrl + マウスホイールでも拡大縮小</span>
+        </div>
+
+        <div class="btn-row" style="margin-top:10px">
           <button id="rerunFullBtn" class="btn secondary" disabled>画像全体で再OCR</button>
           <button id="rerunCropBtn" class="btn secondary" disabled>選択範囲で再OCR</button>
           <button id="clearCropBtn" class="btn secondary" disabled>トリミング解除</button>
         </div>
 
         <div class="crop-help">
-          画像の上でドラッグすると、OCRしたい範囲だけを選べます。<br>
-          プレイリスト名や列見出しを拾う場合は、曲一覧の部分だけ囲んでから「選択範囲で再OCR」を押してください。
+          画像は元データを原寸保持しています。「100%」で1画像ピクセル＝1画面ピクセル表示です。<br>
+          画像の上でドラッグするとOCR範囲を選択できます。曲一覧だけ囲んで「選択範囲で再OCR」を押してください。
         </div>
 
         <div class="inline-meta">
@@ -215,7 +226,7 @@
     </div>
   </section>
 
-  <footer>Simple Web v0.4 — トリミングOCR + 不要行フィルタ</footer>
+  <footer>Simple Web v0.5 — 原寸ズーム + トリミングOCR</footer>
 </div>
 
 <script>
@@ -237,8 +248,8 @@
   let sourceCanvas = null;
   let displayCanvas = null;
   let displayCtx = null;
-  let displayScale = 1;
-  let cropRect = null;
+  let viewScale = 1;
+  let cropRect = null;   // 元画像ピクセル座標
   let dragging = false;
   let dragStart = null;
 
@@ -252,6 +263,7 @@
   }
   function saveTracks(){ localStorage.setItem("vj-simple-tracks", JSON.stringify(tracks)); }
 
+  // tabs
   $$(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
       $$(".tab").forEach(b => b.classList.remove("active"));
@@ -262,6 +274,7 @@
     });
   });
 
+  // ---------- setlist ----------
   const fileInput = $("#fileInput");
   const drop = $("#drop");
 
@@ -283,6 +296,20 @@
   $("#rerunFullBtn").addEventListener("click", () => runOcrOnCurrent(false));
   $("#rerunCropBtn").addEventListener("click", () => runOcrOnCurrent(true));
   $("#clearCropBtn").addEventListener("click", clearCrop);
+  $("#zoomOutBtn").addEventListener("click", () => setZoom(viewScale - 0.25));
+  $("#zoomInBtn").addEventListener("click", () => setZoom(viewScale + 0.25));
+  $("#zoom100Btn").addEventListener("click", () => setZoom(1));
+  $("#zoomFitBtn").addEventListener("click", fitImageToViewport);
+
+  drop.addEventListener("wheel", (event) => {
+    if (!sourceCanvas || !event.ctrlKey) return;
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? 0.25 : -0.25;
+    setZoom(viewScale + delta, {
+      clientX: event.clientX,
+      clientY: event.clientY
+    });
+  }, { passive:false });
 
   async function handleImage(file){
     if (!file.type.startsWith("image/")) return setOcrStatus("画像ファイルを選択してください", 0);
@@ -309,26 +336,73 @@
     drop.innerHTML = "";
     displayCanvas = document.createElement("canvas");
     displayCanvas.style.cursor = "crosshair";
+    displayCanvas.width = sourceCanvas.width;
+    displayCanvas.height = sourceCanvas.height;
     drop.appendChild(displayCanvas);
     displayCtx = displayCanvas.getContext("2d");
 
-    const maxW = Math.min(drop.clientWidth - 20, sourceCanvas.width);
-    const maxH = Math.min(window.innerHeight * 0.55, sourceCanvas.height);
-    const scale = Math.min(maxW / sourceCanvas.width, maxH / sourceCanvas.height, 1);
-    displayScale = scale > 0 ? scale : 1;
-    displayCanvas.width = Math.round(sourceCanvas.width * displayScale);
-    displayCanvas.height = Math.round(sourceCanvas.height * displayScale);
-
     bindCropEvents();
     renderDisplayCanvas();
+    requestAnimationFrame(fitImageToViewport);
+  }
+
+  function clampZoom(value){
+    return Math.max(0.25, Math.min(4, Math.round(value * 4) / 4));
+  }
+
+  function setZoom(nextScale, anchor=null){
+    if (!displayCanvas || !sourceCanvas) return;
+
+    const oldScale = viewScale || 1;
+    const newScale = clampZoom(nextScale);
+
+    let imageX = null;
+    let imageY = null;
+    if (anchor) {
+      const dropRect = drop.getBoundingClientRect();
+      const localX = anchor.clientX - dropRect.left + drop.scrollLeft;
+      const localY = anchor.clientY - dropRect.top + drop.scrollTop;
+      imageX = localX / oldScale;
+      imageY = localY / oldScale;
+    }
+
+    viewScale = newScale;
+    applyCanvasZoom();
+
+    if (anchor && imageX !== null && imageY !== null) {
+      const dropRect = drop.getBoundingClientRect();
+      drop.scrollLeft = imageX * newScale - (anchor.clientX - dropRect.left);
+      drop.scrollTop = imageY * newScale - (anchor.clientY - dropRect.top);
+    }
+  }
+
+  function applyCanvasZoom(){
+    if (!displayCanvas || !sourceCanvas) return;
+    displayCanvas.style.width = `${Math.round(sourceCanvas.width * viewScale)}px`;
+    displayCanvas.style.height = `${Math.round(sourceCanvas.height * viewScale)}px`;
+    $("#zoomValue").textContent = `${Math.round(viewScale * 100)}%`;
+    $("#zoomOutBtn").disabled = viewScale <= 0.25;
+    $("#zoomInBtn").disabled = viewScale >= 4;
+  }
+
+  function fitImageToViewport(){
+    if (!displayCanvas || !sourceCanvas) return;
+    const availableWidth = Math.max(120, drop.clientWidth - 18);
+    const fitScale = Math.min(1, availableWidth / sourceCanvas.width);
+    viewScale = Math.max(0.25, fitScale);
+    applyCanvasZoom();
+    drop.scrollLeft = 0;
+    drop.scrollTop = 0;
   }
 
   function bindCropEvents(){
     const getPoint = (event) => {
       const rect = displayCanvas.getBoundingClientRect();
+      const scaleX = displayCanvas.width / rect.width;
+      const scaleY = displayCanvas.height / rect.height;
       return {
-        x: Math.max(0, Math.min(displayCanvas.width, event.clientX - rect.left)),
-        y: Math.max(0, Math.min(displayCanvas.height, event.clientY - rect.top))
+        x: Math.max(0, Math.min(displayCanvas.width, (event.clientX - rect.left) * scaleX)),
+        y: Math.max(0, Math.min(displayCanvas.height, (event.clientY - rect.top) * scaleY))
       };
     };
 
@@ -387,7 +461,7 @@
       displayCtx.fillStyle = "rgba(61,215,255,.18)";
       displayCtx.fillRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
 
-      const label = `OCR範囲 ${Math.round(cropRect.w / displayScale)}×${Math.round(cropRect.h / displayScale)}`;
+      const label = `OCR範囲 ${Math.round(cropRect.w)}×${Math.round(cropRect.h)}`;
       displayCtx.setLineDash([]);
       displayCtx.font = "12px sans-serif";
       const pad = 6;
@@ -417,7 +491,12 @@
 
   function enableImageButtons(enabled){
     $("#rerunFullBtn").disabled = !enabled;
+    $("#zoomOutBtn").disabled = !enabled;
+    $("#zoomInBtn").disabled = !enabled;
+    $("#zoom100Btn").disabled = !enabled;
+    $("#zoomFitBtn").disabled = !enabled;
     syncCropButtons();
+    if (enabled) applyCanvasZoom();
   }
 
   async function runOcrOnCurrent(useCrop){
@@ -443,10 +522,10 @@
 
   async function getCropBlob(){
     if (!sourceCanvas || !cropRect) throw new Error("トリミング範囲がありません。");
-    const x = Math.round(cropRect.x / displayScale);
-    const y = Math.round(cropRect.y / displayScale);
-    const w = Math.round(cropRect.w / displayScale);
-    const h = Math.round(cropRect.h / displayScale);
+    const x = Math.round(cropRect.x);
+    const y = Math.round(cropRect.y);
+    const w = Math.round(cropRect.w);
+    const h = Math.round(cropRect.h);
     const c = document.createElement("canvas");
     c.width = w;
     c.height = h;
@@ -632,6 +711,7 @@
         }
       }
 
+      // 次行がアーティストっぽい時だけ補完
       if (!artist && i + 1 < lines.length) {
         const next = lines[i + 1];
         if (!shouldIgnoreAsUiLine(next) && next.length <= 42 && !/^\d{1,3}\b/.test(next) && !/BPM|評価|時間/i.test(next)) {
@@ -750,6 +830,7 @@
 
   renderTracks();
 
+  // ---------- live ----------
   $("#refreshDevices").addEventListener("click", refreshDevices);
   $("#startLive").addEventListener("click", startLive);
   $("#stopLive").addEventListener("click", stopLive);

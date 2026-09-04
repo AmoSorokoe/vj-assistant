@@ -1,0 +1,11 @@
+{
+  "audd_api_token": "",
+  "audio_device": null,
+  "sample_seconds": 7.0,
+  "normal_interval_seconds": 7.0,
+  "rapid_confirm_seconds": 3.0,
+  "confirm_hits": 2,
+  "sync_lead_seconds": 0.0,
+  "youtube_results": 5,
+  "mode": "HOT STANDBY"
+}
